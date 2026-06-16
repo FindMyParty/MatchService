@@ -137,3 +137,16 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - profile-repository.js uses `.onConflict().doNothing()` on save — profile events may arrive more than once (idempotent upsert)
   - Repositories have zero business logic — they purely translate domain objects to/from DB rows
 ---
+
+## 2026-06-16 - US-011
+- Created src/adapters/outbound/messaging/publisher.js exporting RabbitMQEventPublisher class
+- connect(channel) stores the amqplib channel in a private field (#channel)
+- publish(routingKey, payload) calls assertExchange then channel.publish with JSON-serialized payload; errors are caught and logged via pino logger without rethrowing
+- Removed src/adapters/outbound/messaging/.gitkeep
+- Files changed: publisher.js (new), .gitkeep (deleted)
+- **Learnings for future iterations:**
+  - assertExchange is called on every publish to ensure idempotent exchange declaration (safe to call multiple times)
+  - channel.publish is synchronous (returns bool); the async wrapper is for assertExchange which returns a Promise
+  - Private class field (#channel) keeps the channel encapsulated; no getter needed since connect() is the only setter
+  - Exchange name is 'match' (matches the service name); type is 'topic' to allow wildcard routing key subscriptions
+---

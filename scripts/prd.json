@@ -158,7 +158,7 @@
         "Erros de publish são logados sem derrubar o processo"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
