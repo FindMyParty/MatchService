@@ -39,3 +39,18 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - zod's `safeParse` is preferred over `parse` so we can collect all errors before printing and exiting cleanly
   - NODE_ENV should use z.enum(['development','production','test']) not z.string() for proper validation
 ---
+
+## 2026-06-15 - US-003
+- Created src/adapters/outbound/db/migrator.js using Kysely FileMigrationProvider pointing to src/migrations/
+- Created src/migrations/001_create_profile.js creating table profile with id_profile (VARCHAR PRIMARY KEY) and name (VARCHAR NOT NULL) using ifNotExists()
+- Removed .gitkeep from src/adapters/outbound/db/ and src/migrations/
+- migrate script in package.json was already correct from US-001: node --env-file=.env src/adapters/outbound/db/migrator.js
+- Files changed: src/adapters/outbound/db/migrator.js (new), src/migrations/001_create_profile.js (new), removed .gitkeep in those dirs
+- **Learnings for future iterations:**
+  - migrator.js creates its own inline Kysely connection (not importing from client.js) since it runs as a standalone script; client.js singleton is for the running service
+  - path from migrator.js to migrations: `path.join(__dirname, '../../../migrations')` (3 levels up from db/ to src/, then into migrations/)
+  - FileMigrationProvider requires `fs` (from `import { promises as fs } from 'fs'`), `path` module, and `migrationFolder` absolute path
+  - Kysely migration files must export named `up` and `down` async functions
+  - Top-level await works in migrator.js because the project uses ESM (type: module)
+  - Manual DB verification needed: npm run migrate can only be tested with a live PostgreSQL instance
+---

@@ -46,7 +46,7 @@
         "npm run migrate executa sem erros com banco disponível"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
