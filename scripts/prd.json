@@ -115,7 +115,7 @@
         "Nenhum use case importa de adapters/ ou config/"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

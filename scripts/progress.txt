@@ -99,3 +99,16 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - Port files are pure JSDoc documentation with no runtime code — they define contracts that adapters implement
   - Inbound ports describe what the application exposes to callers; outbound ports describe what the application needs from infrastructure
 ---
+
+## 2026-06-16 - US-008
+- Created src/domain/use-cases/create-profile.js: CreateProfileUseCase class with execute({ id_profile, name })
+- Created src/domain/use-cases/create-match.js: CreateMatchUseCase class with execute({ id_profile1, id_profile2 }), validates ids differ, publishes match.match.created event
+- Created src/domain/use-cases/list-matches.js: ListMatchesUseCase class with execute() delegating to matchRepository.findAll()
+- Removed src/domain/use-cases/.gitkeep
+- Files changed: 3 new use case files, .gitkeep deleted
+- **Learnings for future iterations:**
+  - Use cases are classes (not plain functions) — constructor receives repository/publisher dependencies, execute() contains the business logic
+  - Domain use cases import from shared/ (logger, errors) and domain/entities — never from adapters/ or config/
+  - CreateMatchUseCase validates ids differ before calling createMatch entity (entity only validates individual fields are present)
+  - Event publishing happens after successful DB save — if publish fails, the match is still persisted (fire-and-forget semantics)
+---
