@@ -178,3 +178,18 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - Fastify's setErrorHandler receives errors thrown inside route handlers including those thrown by preHandler hooks
   - @fastify/helmet and @fastify/cors are registered as plugins (fastify.register), not as hooks
 ---
+
+## 2026-06-16 - US-014
+- Created src/adapters/inbound/http/routes/match.routes.js: Fastify plugin registering POST /matches and GET /matches, both protected by authMiddleware preHandler
+- POST /matches validates body with zod { id_profile1: z.string().min(1), id_profile2: z.string().min(1) }; ZodError is caught and re-thrown as ValidationError for consistent error formatting; returns { data: match } with status 201
+- GET /matches calls matchService.listMatches() and returns { data: matches } with status 200
+- Created src/adapters/inbound/http/routes/health.routes.js: Fastify plugin registering GET /health (no auth); returns static { status: 'ok', dependencies: { postgres: 'ok', rabbitmq: 'ok', otel: 'ok' } } with status 200
+- Updated src/adapters/inbound/http/server.js: buildServer() now accepts matchService parameter; registers healthRoutes and matchRoutes (passing { matchService }) after error handler setup
+- Removed src/adapters/inbound/http/routes/.gitkeep
+- Files changed: routes/match.routes.js (new), routes/health.routes.js (new), server.js (updated), routes/.gitkeep (deleted)
+- **Learnings for future iterations:**
+  - Route plugins receive options as second arg to the async function: `async function matchRoutes(fastify, { matchService })`
+  - ZodError must be caught and converted to ValidationError inside the route handler — the global error handler only handles AppError subclasses and Fastify's own validation errors (error.validation flag)
+  - health.routes.js returns static dependency statuses for now; US-015/016 can upgrade to real connectivity checks if needed
+  - buildServer(matchService) signature change means main.js (US-016) must pass the matchService instance when building the server
+---

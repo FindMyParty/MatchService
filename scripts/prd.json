@@ -199,7 +199,7 @@
         "Erros seguem formato { error: { code, message } }"
       ],
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
