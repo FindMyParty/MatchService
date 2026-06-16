@@ -213,7 +213,7 @@
         "Nenhum dado sensível nos logs ou spans"
       ],
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

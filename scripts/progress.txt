@@ -7,6 +7,9 @@
 - Use `.gitkeep` for empty directories until story populates them
 - vitest.config.js sets `passWithNoTests: true` — tests won't fail when no test files exist yet
 - All environment access is centralized in `src/config/env.js`; other modules import `env` from there
+- shared/ modules (logger.js, telemetry.js) read process.env directly — they CANNOT import from config/env.js
+- OTel NodeSDK uses `metricReader` (singular) not `metricReaders` in sdk-node 0.55.0
+- Sentry init goes in main.js (US-016), NOT in telemetry.js — telemetry.js only handles OTel SDK
 
 # Ralph Progress Log
 Started: Mon, Jun 15, 2026 10:24:26 PM
@@ -177,6 +180,23 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - authMiddleware is a plain async function to be used as a Fastify preHandler hook on individual routes, not registered globally via addHook (routes without auth like /health skip it)
   - Fastify's setErrorHandler receives errors thrown inside route handlers including those thrown by preHandler hooks
   - @fastify/helmet and @fastify/cors are registered as plugins (fastify.register), not as hooks
+---
+
+## 2026-06-16 - US-015
+- Created src/shared/telemetry.js exporting initTelemetry() and shutdownTelemetry()
+- initTelemetry() initializes NodeSDK with serviceName 'match-service', OTLP trace exporter, PeriodicExportingMetricReader with OTLP metric exporter, and getNodeAutoInstrumentations()
+- URLs constructed as `${OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces` and `/v1/metrics` — falls back to OTel SDK defaults if env var is absent
+- Created src/adapters/inbound/http/routes/metrics.routes.js: GET /metrics (no auth) returning { status, mode: 'push', endpoint } — documents push-model metric export via OTLP
+- Updated src/adapters/inbound/http/server.js to register metricsRoutes alongside healthRoutes and matchRoutes
+- Sentry init left for US-016 main.js (acceptance criterion says "em main.js")
+- Files changed: src/shared/telemetry.js (new), src/adapters/inbound/http/routes/metrics.routes.js (new), src/adapters/inbound/http/server.js (updated)
+- **Learnings for future iterations:**
+  - shared/ modules cannot import from config/env.js (circular concern); read process.env directly with undefined fallback
+  - NodeSDK in sdk-node@0.55.0 uses `metricReader: MetricReader` (singular) in constructor config
+  - `serviceName` shortcut in NodeSDK config is preferred over building a full Resource object for simple service name setting
+  - GET /metrics is a push-model info endpoint (not Prometheus text format) since @opentelemetry/exporter-prometheus is not installed
+  - initTelemetry() must be called BEFORE main.js imports env.js — OTel should instrument before any other setup
+  - shutdownTelemetry() uses optional chaining (sdk?.shutdown()) to be safe if init was never called
 ---
 
 ## 2026-06-16 - US-014
