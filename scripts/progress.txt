@@ -150,3 +150,18 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - Private class field (#channel) keeps the channel encapsulated; no getter needed since connect() is the only setter
   - Exchange name is 'match' (matches the service name); type is 'topic' to allow wildcard routing key subscriptions
 ---
+
+## 2026-06-16 - US-012
+- Created src/adapters/inbound/messaging/subscriber.js exporting registerSubscribers(channel, createProfileUseCase)
+- Declares exchange 'profile' (topic, durable) and DLQ exchange 'match-service.profile.profile.created.dlq' (topic, durable)
+- Queue 'match-service.profile.profile.created' with x-dead-letter-exchange pointing to the DLQ exchange
+- Binding key 'profile.profile.created' linking queue to profile exchange
+- On message: parse JSON → extract {id_profile, name} → execute createProfileUseCase.execute(); ack on success, nack(false,false) on parse or execution error
+- Removed src/adapters/inbound/messaging/.gitkeep
+- Files changed: subscriber.js (new), .gitkeep (deleted)
+- **Learnings for future iterations:**
+  - assertExchange must be called for BOTH the main exchange AND the DLQ exchange before declaring the queue with x-dead-letter-exchange
+  - nack(msg, false, false) = don't requeue, don't multiple — sends message to DLQ via dead-letter routing
+  - channel.consume callback must handle null msg (consumer cancelled by broker) with an early return
+  - registerSubscribers is async — callers (main.js) must await it to ensure queue/exchange setup completes before service starts accepting traffic
+---

@@ -173,7 +173,7 @@
         "Sucesso: channel.ack(msg); erro de parse ou execução: loga o erro e channel.nack(msg, false, false)"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
