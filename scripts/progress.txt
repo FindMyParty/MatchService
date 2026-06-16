@@ -112,3 +112,16 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - CreateMatchUseCase validates ids differ before calling createMatch entity (entity only validates individual fields are present)
   - Event publishing happens after successful DB save — if publish fails, the match is still persisted (fire-and-forget semantics)
 ---
+
+## 2026-06-16 - US-009
+- Created src/application/services/match-application-service.js exporting MatchApplicationService class
+- Constructor receives (profileRepository, matchRepository, eventPublisher) — profileRepository stored for future use cases (CreateProfile)
+- createMatch(data) instantiates CreateMatchUseCase with (matchRepository, eventPublisher) and calls execute(data)
+- listMatches() instantiates ListMatchesUseCase with (matchRepository) and calls execute()
+- Removed src/application/services/.gitkeep
+- Files changed: src/application/services/match-application-service.js (new), .gitkeep deleted
+- **Learnings for future iterations:**
+  - MatchApplicationService is the composition root bridge — it holds all repository/publisher refs but delegates logic to use cases
+  - Use cases are instantiated per-call (not stored as instance vars) — keeps them stateless and easy to test
+  - profileRepository is kept in constructor even though not yet used by createMatch/listMatches — it will be needed when CreateProfileUseCase is wired at boot (main.js)
+---

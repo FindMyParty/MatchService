@@ -130,7 +130,7 @@
         "Implementa o contrato IMatchService"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
