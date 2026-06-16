@@ -3,8 +3,10 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { logger } from '../../../shared/logger.js';
 import { AppError } from '../../../shared/errors.js';
+import { matchRoutes } from './routes/match.routes.js';
+import { healthRoutes } from './routes/health.routes.js';
 
-export function buildServer() {
+export function buildServer(matchService) {
   const fastify = Fastify({ logger });
 
   fastify.register(cors);
@@ -28,6 +30,9 @@ export function buildServer() {
       error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
     });
   });
+
+  fastify.register(healthRoutes);
+  fastify.register(matchRoutes, { matchService });
 
   return fastify;
 }
