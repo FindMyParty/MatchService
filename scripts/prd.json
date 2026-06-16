@@ -144,7 +144,7 @@
         "Nenhuma lógica de negócio dentro dos repositórios"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

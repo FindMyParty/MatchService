@@ -125,3 +125,15 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - Use cases are instantiated per-call (not stored as instance vars) — keeps them stateless and easy to test
   - profileRepository is kept in constructor even though not yet used by createMatch/listMatches — it will be needed when CreateProfileUseCase is wired at boot (main.js)
 ---
+
+## 2026-06-16 - US-010
+- Created src/adapters/outbound/db/client.js: Kysely singleton typed via JSDoc with Database interface (profile table: id_profile, name; match_tb table: id_profile1, id_profile2, data)
+- Created src/adapters/outbound/db/profile-repository.js: ProfileRepository class implementing save(profile) with onConflict doNothing, and findById(id_profile) returning undefined if not found
+- Created src/adapters/outbound/db/match-repository.js: MatchRepository class implementing save(match) and findAll()
+- Files changed: client.js, profile-repository.js, match-repository.js (all new)
+- **Learnings for future iterations:**
+  - client.js uses the same Kysely+PostgresDialect+pg.Pool pattern as migrator.js but exports a module-level singleton (no top-level await needed)
+  - JSDoc `@typedef` in client.js documents the Database schema for Kysely's type parameter — JS project so no TS generics, but the JSDoc keeps intellisense working
+  - profile-repository.js uses `.onConflict().doNothing()` on save — profile events may arrive more than once (idempotent upsert)
+  - Repositories have zero business logic — they purely translate domain objects to/from DB rows
+---
