@@ -1,0 +1,34 @@
+{
+  "name": "match-service",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MatchService microsservice for FindMyParty",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js",
+    "test": "vitest",
+    "migrate": "node --env-file=.env src/adapters/outbound/db/migrator.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/swagger": "^8.15.0",
+    "@fastify/swagger-ui": "^4.0.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.52.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.55.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.55.0",
+    "@opentelemetry/sdk-node": "^0.55.0",
+    "@sentry/node": "^8.38.0",
+    "amqplib": "^0.10.4",
+    "fastify": "^4.28.1",
+    "kysely": "^0.27.4",
+    "pg": "^8.13.1",
+    "pino": "^9.5.0",
+    "pino-loki": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}
