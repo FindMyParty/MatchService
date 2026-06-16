@@ -185,7 +185,7 @@
         "src/adapters/inbound/http/middleware/auth.js verifica presença e formato Bearer <token> no header Authorization; retorna 401 (UnauthorizedError) se ausente ou inválido; injeta req.user com payload placeholder quando válido"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

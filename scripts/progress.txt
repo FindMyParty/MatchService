@@ -165,3 +165,16 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - channel.consume callback must handle null msg (consumer cancelled by broker) with an early return
   - registerSubscribers is async — callers (main.js) must await it to ensure queue/exchange setup completes before service starts accepting traffic
 ---
+
+## 2026-06-16 - US-013
+- Created src/adapters/inbound/http/server.js: buildServer() factory using Fastify with pino logger, @fastify/cors, @fastify/helmet, and global setErrorHandler
+- Error handler maps AppError subclasses to their statusCode/code, Fastify validation errors to 400 VALIDATION_ERROR, and all others to 500 INTERNAL_ERROR; all responses use `{ error: { code, message } }`
+- Created src/adapters/inbound/http/middleware/auth.js: authMiddleware hook that checks `Authorization: Bearer <token>` header presence and format; throws UnauthorizedError on missing/invalid; injects req.user = { id: 'system', token } as placeholder
+- Removed src/adapters/inbound/http/middleware/.gitkeep (routes/.gitkeep stays — routes are added in US-014)
+- Files changed: server.js (new), middleware/auth.js (new), middleware/.gitkeep (deleted)
+- **Learnings for future iterations:**
+  - buildServer() is a factory (not a singleton) — main.js calls it once and stores the returned instance; this makes the server testable in isolation
+  - authMiddleware is a plain async function to be used as a Fastify preHandler hook on individual routes, not registered globally via addHook (routes without auth like /health skip it)
+  - Fastify's setErrorHandler receives errors thrown inside route handlers including those thrown by preHandler hooks
+  - @fastify/helmet and @fastify/cors are registered as plugins (fastify.register), not as hooks
+---
