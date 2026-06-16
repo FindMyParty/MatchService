@@ -1,0 +1,41 @@
+## Codebase Patterns
+- Project uses pure ESM modules (`"type": "module"` in package.json)
+- Hexagonal architecture: src/domain/, src/application/, src/adapters/inbound/, src/adapters/outbound/
+- Always use `IF NOT EXISTS` for migrations (idempotence requirement)
+- Table name for match is `match_tb` (not `match`) to avoid SQL reserved word conflict
+- Composite PK in match_tb requires raw SQL (kysely doesn't support it natively)
+- Use `.gitkeep` for empty directories until story populates them
+- vitest.config.js sets `passWithNoTests: true` — tests won't fail when no test files exist yet
+- All environment access is centralized in `src/config/env.js`; other modules import `env` from there
+
+# Ralph Progress Log
+Started: Mon, Jun 15, 2026 10:24:26 PM
+---
+
+## 2026-06-15 22:30 - US-001
+- Created full hexagonal directory structure under src/
+- Created package.json with name: match-service, type: module, scripts: start/dev/test/migrate
+- Installed all required dependencies (fastify, kysely, pg, amqplib, zod, pino, pino-loki, @opentelemetry/*, @sentry/node) and vitest as devDependency
+- Created .env.example with all required variables (DATABASE_URL points to localhost:5434)
+- Created Dockerfile (node:22-alpine, WORKDIR /app, npm ci --only=production)
+- Added .gitkeep to all empty directories so git tracks the structure
+- Switched to ralph/match-service branch (created from main)
+- Files changed: package.json, package-lock.json, .env.example, Dockerfile, src/**/.gitkeep
+- **Learnings for future iterations:**
+  - Directories must have at least a .gitkeep until populated by a story; remove .gitkeep when adding real files to a directory
+  - The `migrate` script uses `node --env-file=.env` which requires Node.js 20+; package uses node:22-alpine
+  - No skeleton-service reference repo available — Dockerfile created from scratch following Node.js best practices
+---
+
+## 2026-06-15 22:35 - US-002
+- Created src/config/env.js with zod schema validating all required env vars (PORT, DATABASE_URL, RABBITMQ_URL, JWT_SECRET, NODE_ENV, LOG_LEVEL, OTEL_EXPORTER_OTLP_ENDPOINT)
+- SENTRY_DSN is optional via zod .optional()
+- On validation failure, prints all missing/invalid fields and calls process.exit(1)
+- Created vitest.config.js with passWithNoTests: true to prevent test suite from failing when no test files exist
+- Removed src/config/.gitkeep (replaced by real file)
+- Files changed: src/config/env.js (new), vitest.config.js (new), src/config/.gitkeep (deleted)
+- **Learnings for future iterations:**
+  - `vitest --run` exits with code 1 when no test files are found; added vitest.config.js with `passWithNoTests: true` to fix this
+  - zod's `safeParse` is preferred over `parse` so we can collect all errors before printing and exiting cleanly
+  - NODE_ENV should use z.enum(['development','production','test']) not z.string() for proper validation
+---

@@ -1,0 +1,248 @@
+{
+  "project": "MatchService",
+  "branchName": "ralph/match-service",
+  "description": "Microsserviço de matches do FindMyParty — consome evento profile.profile.created via RabbitMQ, persiste perfis localmente e expõe endpoints HTTP para criar e listar matches entre perfis.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Setup inicial do projeto",
+      "description": "As a developer, I want the base directory structure and config files for MatchService so that it follows the project's hexagonal architecture pattern.",
+      "acceptanceCriteria": [
+        "Estrutura de pastas criada: src/domain/, src/application/, src/adapters/inbound/, src/adapters/outbound/, src/config/, src/shared/, src/migrations/",
+        "package.json com name: match-service, type: module, scripts start/dev/test/migrate",
+        "Dependências instaladas: fastify, @fastify/cors, @fastify/helmet, @fastify/swagger, @fastify/swagger-ui, kysely, pg, amqplib, zod, pino, pino-loki, @opentelemetry/sdk-node, @opentelemetry/auto-instrumentations-node, @opentelemetry/exporter-metrics-otlp-http, @opentelemetry/exporter-trace-otlp-http, @sentry/node; devDependency: vitest",
+        ".env.example com PORT, DATABASE_URL (localhost:5434), RABBITMQ_URL, JWT_SECRET, NODE_ENV, LOG_LEVEL, OTEL_EXPORTER_OTLP_ENDPOINT, SENTRY_DSN",
+        "Dockerfile funcional baseado no skeleton-service adaptado para match-service",
+        ".gitignore cobrindo node_modules, .env, dist"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Configuração e validação de ambiente",
+      "description": "As a developer, I want environment variables validated with zod at boot so that missing config is caught immediately with a clear message.",
+      "acceptanceCriteria": [
+        "src/config/env.js valida PORT, DATABASE_URL, RABBITMQ_URL, JWT_SECRET, NODE_ENV, LOG_LEVEL, OTEL_EXPORTER_OTLP_ENDPOINT com zod",
+        "SENTRY_DSN é opcional (zod .optional())",
+        "Processo encerra com mensagem clara se variável obrigatória estiver ausente",
+        "process.env só é acessado dentro de src/config/env.js",
+        "DATABASE_URL no .env.example aponta para postgresql://user:password@localhost:5434/match"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Setup de migrations e migration da tabela profile",
+      "description": "As a developer, I want the migration system configured and the profile table created so that profiles received via RabbitMQ events can be persisted.",
+      "acceptanceCriteria": [
+        "src/adapters/outbound/db/migrator.js configura FileMigrationProvider do kysely apontando para src/migrations/",
+        "Script migrate no package.json executa: node --env-file=.env src/adapters/outbound/db/migrator.js",
+        "Migration 001_create_profile.js em src/migrations/ cria tabela profile com id_profile (VARCHAR PRIMARY KEY) e name (VARCHAR NOT NULL)",
+        "Migration usa IF NOT EXISTS (idempotente)",
+        "npm run migrate executa sem erros com banco disponível"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Migration da tabela match_tb",
+      "description": "As a developer, I want the match_tb table created via migration so that matches between profiles can be persisted.",
+      "acceptanceCriteria": [
+        "Migration 002_create_match_tb.js em src/migrations/ cria tabela match_tb com id_profile1 (VARCHAR NOT NULL), id_profile2 (VARCHAR NOT NULL), data (TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+        "Chave primária composta (id_profile1, id_profile2) definida via sql raw: PRIMARY KEY (id_profile1, id_profile2)",
+        "id_profile1 e id_profile2 são foreign keys para profile.id_profile",
+        "Migration usa IF NOT EXISTS (idempotente)",
+        "npm run migrate executa ambas as migrations sem erros"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Shared: logger e errors",
+      "description": "As a developer, I want shared logger and error classes available so that all layers of the application can use them consistently.",
+      "acceptanceCriteria": [
+        "src/shared/logger.js exporta instância pino configurada com level via env.LOG_LEVEL",
+        "src/shared/errors.js exporta: AppError(message, statusCode, code), NotFoundError(resource), ValidationError(message), UnauthorizedError(), ConflictError(message)",
+        "Nenhum import de adapters/ ou config/ dentro de shared/"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Entidades do domínio (Profile e Match)",
+      "description": "As a developer, I want Profile and Match domain entities so that business data is modeled without any infrastructure dependency.",
+      "acceptanceCriteria": [
+        "src/domain/entities/profile.js exporta createProfile({ id_profile, name }) que valida ambos obrigatórios e retorna objeto { id_profile, name }",
+        "src/domain/entities/match.js exporta createMatch({ id_profile1, id_profile2, data }) que valida id_profile1 e id_profile2 obrigatórios, data default para new Date(), e retorna objeto { id_profile1, id_profile2, data }",
+        "Domínio não importa nada de adapters/, config/ ou módulos Node.js built-in"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Ports inbound e outbound",
+      "description": "As a developer, I want well-defined port interfaces so that the separation between domain and infrastructure is clear.",
+      "acceptanceCriteria": [
+        "src/domain/ports/outbound/profile-repository.js documenta via JSDoc: save(profile), findById(id_profile)",
+        "src/domain/ports/outbound/match-repository.js documenta via JSDoc: save(match), findAll()",
+        "src/domain/ports/outbound/event-publisher.js documenta via JSDoc: publish(routingKey, payload)",
+        "src/domain/ports/inbound/match-service.js documenta via JSDoc: createMatch(data), listMatches()"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Use cases (CreateProfile, CreateMatch, ListMatches)",
+      "description": "As a developer, I want use cases implementing business logic that depend only on port interfaces.",
+      "acceptanceCriteria": [
+        "src/domain/use-cases/create-profile.js: recebe { id_profile, name }, cria entidade Profile via createProfile(), salva via IProfileRepository, loga a operação",
+        "src/domain/use-cases/create-match.js: recebe { id_profile1, id_profile2 }, valida que ids são diferentes (lança ValidationError se iguais), cria Match com data = new Date(), salva via IMatchRepository, publica evento match.match.created via IEventPublisher",
+        "src/domain/use-cases/list-matches.js: retorna todos os matches via IMatchRepository.findAll()",
+        "Nenhum use case importa de adapters/ ou config/"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Application service (MatchApplicationService)",
+      "description": "As a developer, I want an application service orchestrating use cases with dependency injection so that infrastructure adapters are wired at the composition root.",
+      "acceptanceCriteria": [
+        "src/application/services/match-application-service.js exporta classe MatchApplicationService",
+        "Constructor recebe (profileRepository, matchRepository, eventPublisher)",
+        "Método createMatch(data) instancia e executa CreateMatchUseCase",
+        "Método listMatches() instancia e executa ListMatchesUseCase",
+        "Implementa o contrato IMatchService"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Adapter outbound — DB client e repositórios PostgreSQL",
+      "description": "As a developer, I want kysely repositories implementing the outbound ports so that domain data is persisted in PostgreSQL.",
+      "acceptanceCriteria": [
+        "src/adapters/outbound/db/client.js exporta singleton kysely conectado via env.DATABASE_URL com interface Database tipada via JSDoc (tabelas: profile, match_tb)",
+        "src/adapters/outbound/db/profile-repository.js implementa save(profile) e findById(id_profile) usando kysely na tabela profile",
+        "src/adapters/outbound/db/match-repository.js implementa save(match) e findAll() usando kysely na tabela match_tb",
+        "Nenhuma lógica de negócio dentro dos repositórios"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Adapter outbound — RabbitMQ event publisher",
+      "description": "As a developer, I want a RabbitMQ publisher implementing IEventPublisher so that domain events are sent to the message broker.",
+      "acceptanceCriteria": [
+        "src/adapters/outbound/messaging/publisher.js exporta classe RabbitMQEventPublisher",
+        "Método connect(channel) armazena o canal amqplib",
+        "Método publish(routingKey, payload) serializa payload para JSON e publica no exchange match (durable: true, type: topic) com a routing key fornecida",
+        "Erros de publish são logados sem derrubar o processo"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Adapter inbound — Subscriber RabbitMQ para profile.profile.created",
+      "description": "As a developer, I want a RabbitMQ subscriber that consumes profile.profile.created and creates the profile locally.",
+      "acceptanceCriteria": [
+        "src/adapters/inbound/messaging/subscriber.js exporta registerSubscribers(channel, createProfileUseCase)",
+        "Declara exchange profile como topic durable, queue match-service.profile.profile.created com dead letter exchange configurado para DLQ match-service.profile.profile.created.dlq",
+        "Binding key profile.profile.created",
+        "Ao receber mensagem: parseia JSON, extrai { id_profile, name }, executa createProfileUseCase",
+        "Sucesso: channel.ack(msg); erro de parse ou execução: loga o erro e channel.nack(msg, false, false)"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Adapter inbound — HTTP server e auth middleware",
+      "description": "As a developer, I want the Fastify server configured with cors, helmet, error handler and auth middleware so that routes are protected and errors are formatted consistently.",
+      "acceptanceCriteria": [
+        "src/adapters/inbound/http/server.js configura Fastify com @fastify/cors, @fastify/helmet e error handler global que retorna { error: { code, message } }",
+        "src/adapters/inbound/http/middleware/auth.js verifica presença e formato Bearer <token> no header Authorization; retorna 401 (UnauthorizedError) se ausente ou inválido; injeta req.user com payload placeholder quando válido"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Adapter inbound — HTTP routes de Match e health check",
+      "description": "As an API client, I want HTTP endpoints to create and list matches, and a health check endpoint.",
+      "acceptanceCriteria": [
+        "src/adapters/inbound/http/routes/match.routes.js registra POST /matches com body zod { id_profile1: string, id_profile2: string }; retorna { data: { id_profile1, id_profile2, data } } status 201; requer auth middleware",
+        "GET /matches retorna { data: [...] } status 200; requer auth middleware",
+        "src/adapters/inbound/http/routes/health.routes.js registra GET /health sem autenticação; retorna { status: 'ok', dependencies: { postgres: 'ok', rabbitmq: 'ok', otel: 'ok' } } status 200",
+        "Erros seguem formato { error: { code, message } }"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Observabilidade — telemetry, logger e métricas",
+      "description": "As an operator, I want full OpenTelemetry and Sentry setup so that the service is observable from day one.",
+      "acceptanceCriteria": [
+        "src/shared/telemetry.js exporta função initTelemetry() que inicializa OTel SDK com serviceName match-service e exporta traces via OTLP HTTP para OTEL_EXPORTER_OTLP_ENDPOINT",
+        "GET /metrics exposto para Prometheus via @opentelemetry/exporter-metrics-otlp-http ou endpoint nativo do SDK",
+        "Sentry inicializado em main.js se SENTRY_DSN estiver presente",
+        "Nenhum dado sensível nos logs ou spans"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Boot sequence — main.js",
+      "description": "As a developer, I want main.js to follow the boot sequence defined in CLAUDE.md so that all infrastructure is ready before the service accepts traffic.",
+      "acceptanceCriteria": [
+        "src/main.js executa na ordem: (1) initTelemetry(), (2) validar env, (3) conectar DB via client.js, (4) executar migrateToLatest(), (5) conectar RabbitMQ via amqplib, (6) instanciar publisher e chamar connect(channel), (7) registrar subscribers via registerSubscribers(), (8) instanciar repositórios e application service, (9) iniciar HTTP server",
+        "Graceful shutdown em SIGTERM e SIGINT: fecha server HTTP, fecha conexão RabbitMQ, fecha DB",
+        "Logs pino claros em cada etapa do boot (ex: 'Database connected', 'Migrations applied', 'RabbitMQ connected', 'HTTP server listening on port X')"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Docker-compose e start.sh adaptados",
+      "description": "As a developer, I want the infrastructure files adapted from skeleton-service so that I can start the full stack with a single command.",
+      "acceptanceCriteria": [
+        "docker-compose.yml sobe Postgres 16-alpine com POSTGRES_DB: match, porta 5434:5432, volume match_postgres_data",
+        "docker-compose.yml sobe RabbitMQ 3.13-management-alpine na porta 5672:5672 e 15672:15672, volume match_rabbitmq_data",
+        "start.sh adaptado do skeleton-service: todas as referências skeleton → match, skeleton-service → match-service, porta pg_isready usa banco match",
+        "start.sh executa npm run migrate antes de npm start",
+        "start.sh tem permissão de execução (chmod +x start.sh no script de CI ou instrução no PRD)"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
