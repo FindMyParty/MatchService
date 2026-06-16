@@ -54,3 +54,15 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - Top-level await works in migrator.js because the project uses ESM (type: module)
   - Manual DB verification needed: npm run migrate can only be tested with a live PostgreSQL instance
 ---
+
+## 2026-06-15 - US-004
+- Created src/migrations/002_create_match_tb.js using raw SQL via Kysely `sql` template tag
+- Table match_tb: id_profile1 (VARCHAR NOT NULL), id_profile2 (VARCHAR NOT NULL), data (TIMESTAMPTZ NOT NULL DEFAULT NOW()), composite PK (id_profile1, id_profile2)
+- Both id_profile1 and id_profile2 declare REFERENCES profile(id_profile) as FK constraints
+- Used `CREATE TABLE IF NOT EXISTS` for idempotence, matching the pattern from 001_create_profile.js
+- Files changed: src/migrations/002_create_match_tb.js (new)
+- **Learnings for future iterations:**
+  - Raw SQL via `import { sql } from 'kysely'` then `sql\`...\`.execute(db)` is the correct pattern for unsupported DDL (composite PK, FK)
+  - `down` function can still use Kysely schema builder: `db.schema.dropTable('match_tb').ifExists().execute()`
+  - Migration ordering is alphabetical by filename; 002_ comes after 001_ as expected
+---

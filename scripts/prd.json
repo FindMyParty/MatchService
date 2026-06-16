@@ -61,7 +61,7 @@
         "npm run migrate executa ambas as migrations sem erros"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
