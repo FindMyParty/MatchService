@@ -226,7 +226,7 @@
         "Logs pino claros em cada etapa do boot (ex: 'Database connected', 'Migrations applied', 'RabbitMQ connected', 'HTTP server listening on port X')"
       ],
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

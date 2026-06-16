@@ -213,3 +213,27 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - health.routes.js returns static dependency statuses for now; US-015/016 can upgrade to real connectivity checks if needed
   - buildServer(matchService) signature change means main.js (US-016) must pass the matchService instance when building the server
 ---
+
+## 2026-06-16 - US-016
+- Created src/main.js implementing the full boot sequence in 9 ordered steps
+- Step 1: initTelemetry() called first (static import, so OTel instruments before other dynamic imports)
+- Step 2: env validated via dynamic `import('./config/env.js')` — dynamic import ensures OTel is active before env.js evaluates
+- Sentry initialized after env if SENTRY_DSN is set, before infrastructure connections so it captures boot errors
+- Step 3: DB client imported + `SELECT 1` health check confirms actual connectivity; logs 'Database connected'
+- Step 4: Migrator built inline using db singleton (NOT importing migrator.js — that file has top-level await that runs immediately on import); logs each migration result; exits with code 1 on failure
+- Step 5: amqplib.connect() + createChannel(); logs 'RabbitMQ connected'
+- Step 6: RabbitMQEventPublisher instantiated, connect(channel) called
+- Step 7: ProfileRepository + CreateProfileUseCase instantiated; registerSubscribers(channel, createProfileUseCase) awaited
+- Step 8: MatchRepository + MatchApplicationService instantiated (receives profileRepository, matchRepository, eventPublisher)
+- Step 9: buildServer(matchService) called; server.listen() on 0.0.0.0:PORT; Fastify logs 'Server listening...' automatically
+- Graceful shutdown registered for SIGTERM and SIGINT: closes HTTP server → closes RabbitMQ → destroys DB pool → shuts down telemetry → process.exit(0)
+- Files changed: src/main.js (new)
+- **Learnings for future iterations:**
+  - Use dynamic imports after calling initTelemetry() so OTel instruments all subsequently loaded modules (ESM static imports are evaluated before any module body code runs)
+  - migrator.js cannot be imported in main.js — it has top-level await that runs immediately; replicate Migrator logic inline using the db singleton
+  - `const { default: path } = await import('path')` gives the CJS path module via dynamic ESM import
+  - `const { promises: fs } = await import('fs')` gives fs.promises via dynamic ESM import
+  - migrationFolder path from src/main.js: `path.join(__dirname, './migrations')` (src/migrations/ relative to src/)
+  - `import.meta.url` is available anywhere inside the module (not limited to top-level), so fileURLToPath works inside async top-level code
+  - Sentry v8 default export pattern: `const Sentry = await import('@sentry/node'); Sentry.init({ dsn: env.SENTRY_DSN })`
+---
