@@ -87,7 +87,7 @@
         "Domínio não importa nada de adapters/, config/ ou módulos Node.js built-in"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

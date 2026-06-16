@@ -76,3 +76,14 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - logger.js reads process.env.LOG_LEVEL directly (not from config/env.js) because shared/ must not import from config/; use a fallback of 'info'
   - Error classes extend AppError which extends Error; each sets its own name, statusCode, and code for consistent HTTP error formatting
 ---
+
+## 2026-06-15 - US-006
+- Created src/domain/entities/profile.js exporting createProfile({ id_profile, name })
+- Created src/domain/entities/match.js exporting createMatch({ id_profile1, id_profile2, data })
+- Both validate required fields using ValidationError from shared/errors.js
+- Removed src/domain/entities/.gitkeep
+- Files changed: src/domain/entities/profile.js (new), src/domain/entities/match.js (new), src/domain/entities/.gitkeep (deleted)
+- **Learnings for future iterations:**
+  - Domain entities can import from shared/ (errors.js) — only adapters/ and config/ are forbidden per acceptance criteria
+  - Default parameter `data = new Date()` in createMatch handles the default date requirement without needing explicit logic
+---
