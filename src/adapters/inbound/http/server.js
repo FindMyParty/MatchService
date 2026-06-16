@@ -5,6 +5,7 @@ import { logger } from '../../../shared/logger.js';
 import { AppError } from '../../../shared/errors.js';
 import { matchRoutes } from './routes/match.routes.js';
 import { healthRoutes } from './routes/health.routes.js';
+import { metricsRoutes } from './routes/metrics.routes.js';
 
 export function buildServer(matchService) {
   const fastify = Fastify({ logger });
@@ -32,6 +33,7 @@ export function buildServer(matchService) {
   });
 
   fastify.register(healthRoutes);
+  fastify.register(metricsRoutes);
   fastify.register(matchRoutes, { matchService });
 
   return fastify;
