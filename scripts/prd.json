@@ -101,7 +101,7 @@
         "src/domain/ports/inbound/match-service.js documenta via JSDoc: createMatch(data), listMatches()"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

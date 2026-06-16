@@ -87,3 +87,15 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - Domain entities can import from shared/ (errors.js) — only adapters/ and config/ are forbidden per acceptance criteria
   - Default parameter `data = new Date()` in createMatch handles the default date requirement without needing explicit logic
 ---
+
+## 2026-06-16 - US-007
+- Created src/domain/ports/outbound/profile-repository.js with JSDoc interface: save(profile), findById(id_profile)
+- Created src/domain/ports/outbound/match-repository.js with JSDoc interface: save(match), findAll()
+- Created src/domain/ports/outbound/event-publisher.js with JSDoc interface: publish(routingKey, payload)
+- Created src/domain/ports/inbound/match-service.js with JSDoc interface: createMatch(data), listMatches()
+- Removed .gitkeep from src/domain/ports/inbound/ and src/domain/ports/outbound/
+- Files changed: 4 new port files, 2 .gitkeep deleted
+- **Learnings for future iterations:**
+  - Port files are pure JSDoc documentation with no runtime code — they define contracts that adapters implement
+  - Inbound ports describe what the application exposes to callers; outbound ports describe what the application needs from infrastructure
+---
