@@ -237,3 +237,16 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - `import.meta.url` is available anywhere inside the module (not limited to top-level), so fileURLToPath works inside async top-level code
   - Sentry v8 default export pattern: `const Sentry = await import('@sentry/node'); Sentry.init({ dsn: env.SENTRY_DSN })`
 ---
+
+## 2026-06-16 - US-017
+- Created docker-compose.yml with postgres:16-alpine (POSTGRES_DB: match, port 5434:5432, volume match_postgres_data) and rabbitmq:3.13-management-alpine (ports 5672:5672, 15672:15672, volume match_rabbitmq_data)
+- Created start.sh: waits for postgres via `pg_isready -h localhost -p 5434 -d match`, waits for rabbitmq via `nc -z localhost 5672`, runs `npm run migrate`, runs `npm start`
+- Omitted `version` field from docker-compose.yml — Docker Compose V2 deprecates it and generates warnings
+- POSTGRES_USER/PASSWORD in docker-compose match the credentials in .env.example DATABASE_URL (user/password)
+- Files changed: docker-compose.yml (new), start.sh (new)
+- **Learnings for future iterations:**
+  - start.sh is a local-dev script (not a container entrypoint) — pg_isready targets localhost:5434 (the host-mapped port) not the container-internal port 5432
+  - On Unix/Linux: run `chmod +x start.sh` before using; git tracks the executable bit but Windows doesn't set it automatically
+  - `nc -z host port` is a portable way to check TCP port availability without extra tooling
+  - docker-compose volumes use project-prefixed names (match_postgres_data, match_rabbitmq_data) matching the service name
+---

@@ -241,7 +241,7 @@
         "start.sh tem permissão de execução (chmod +x start.sh no script de CI ou instrução no PRD)"
       ],
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
