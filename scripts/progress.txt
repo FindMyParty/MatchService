@@ -66,3 +66,13 @@ Started: Mon, Jun 15, 2026 10:24:26 PM
   - `down` function can still use Kysely schema builder: `db.schema.dropTable('match_tb').ifExists().execute()`
   - Migration ordering is alphabetical by filename; 002_ comes after 001_ as expected
 ---
+
+## 2026-06-15 - US-005
+- Created src/shared/logger.js exporting a pino instance using process.env.LOG_LEVEL (with 'info' fallback)
+- Created src/shared/errors.js exporting AppError, NotFoundError, ValidationError, UnauthorizedError, ConflictError
+- Removed src/shared/.gitkeep
+- Files changed: src/shared/logger.js (new), src/shared/errors.js (new), src/shared/.gitkeep (deleted)
+- **Learnings for future iterations:**
+  - logger.js reads process.env.LOG_LEVEL directly (not from config/env.js) because shared/ must not import from config/; use a fallback of 'info'
+  - Error classes extend AppError which extends Error; each sets its own name, statusCode, and code for consistent HTTP error formatting
+---

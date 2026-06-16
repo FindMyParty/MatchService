@@ -74,7 +74,7 @@
         "Nenhum import de adapters/ ou config/ dentro de shared/"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
