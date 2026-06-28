@@ -33,17 +33,26 @@ Copie o arquivo de exemplo e ajuste os valores:
 cp .env.example .env
 ```
 
-| Variável | Descrição |
-|---|---|
-| `PORT` | Porta HTTP (padrão: 3000) |
-| `DATABASE_URL` | URL PostgreSQL (`postgresql://user:password@localhost:5434/match`) |
-| `RABBITMQ_URL` | URL AMQP (`amqp://guest:guest@localhost:5672`) |
-| `REDIS_URL` | URL Redis (`redis://localhost:6379`) |
-| `REDIS_TTL` | TTL dos sets Redis em segundos (padrão: 86400) |
-| `NODE_ENV` | `development` / `production` / `test` |
-| `LOG_LEVEL` | `info` recomendado para produção |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | URL base do collector OpenTelemetry |
-| `SENTRY_DSN` | (opcional) DSN do Sentry |
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `PORT` | `3000` | Porta HTTP |
+| `DATABASE_URL` | — | URL PostgreSQL (`postgresql://user:password@localhost:5434/match`) |
+| `RABBITMQ_URL` | — | URL AMQP (`amqp://guest:guest@localhost:5672`) |
+| `REDIS_URL` | — | URL Redis (`redis://localhost:6379`) |
+| `REDIS_TTL` | `86400` | TTL dos sets Redis em segundos |
+| `NODE_ENV` | — | `development` / `production` / `test` |
+| `LOG_LEVEL` | — | `info` recomendado para produção |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | URL base do collector OpenTelemetry |
+| `SENTRY_DSN` | — | (opcional) DSN do Sentry |
+| `RABBITMQ_PROFILE_EXCHANGE` | `profile.events` | Exchange de eventos de perfil (ProfileService) |
+| `RABBITMQ_PROFILE_QUEUE` | `match-service.profile.profile` | Fila de eventos de perfil |
+| `RABBITMQ_PROFILE_BINDING_KEY` | `profile.profile.*` | Binding key da fila de perfil |
+| `RABBITMQ_SWIPE_EXCHANGE` | `match` | Exchange de swipes |
+| `RABBITMQ_SWIPE_QUEUE` | `match-service.match.swipe` | Fila de swipes |
+| `RABBITMQ_SWIPE_BINDING_KEY` | `match.swipe.*` | Binding key da fila de swipe |
+| `RABBITMQ_SUGGESTION_EXCHANGE` | `suggestion` | Exchange de sugestões (Discovery Engine) |
+| `RABBITMQ_SUGGESTION_QUEUE` | `match-service.discovery.suggestion` | Fila de sugestões |
+| `RABBITMQ_SUGGESTION_BINDING_KEY` | `discovery.suggestion.*` | Binding key da fila de sugestões |
 
 ## Iniciando
 
@@ -131,21 +140,41 @@ x-user-id: <uuid>
 
 ## Eventos RabbitMQ
 
+### Convenção de nomenclatura
+
+Todos os nomes de evento (routing keys) e filas seguem o padrão:
+
+```
+[quem publicou].[entidade].[ação no passado]
+```
+
+Exemplos: `match.swipe.created`, `profile.profile.updated`, `discovery.suggestion.created`.
+
+Filas seguem `<consumidor>.<publisher>.<entidade>` — prefixo do serviço consumidor + os dois primeiros segmentos do evento.
+
 ### Consumidos
 
-| Exchange | Binding key | Publicado por | Ação |
+| Exchange | Binding key | Fila | Publicado por |
 |---|---|---|---|
-| `profile.events` | `profile.profile.created` | ProfileService | Salva o perfil localmente |
-| `profile.events` | `profile.profile.updated` / `.synced` | ProfileService | Atualiza o perfil local |
-| `match` | `swipe.swipe.created` | match-service (si mesmo) | Processa swipe: atualiza Redis, cria match se mútuo |
-| `suggestion` | `suggestion.suggestion.*` | **Discovery Engine** | Carrega sugestões no Redis (excluindo já vistos) |
+| `profile.events` | `profile.profile.*` | `match-service.profile.profile` | ProfileService |
+| `match` | `match.swipe.*` | `match-service.match.swipe` | match-service (si mesmo) |
+| `suggestion` | `discovery.suggestion.*` | `match-service.discovery.suggestion` | **Discovery Engine** |
 
 ### Publicados
 
 | Exchange | Routing key | Consumido por | Quando |
 |---|---|---|---|
-| `match` | `swipe.swipe.created` | match-service (si mesmo) | Ao receber `POST /swipes` |
+| `match` | `match.swipe.created` | match-service (si mesmo) | Ao receber `POST /swipes` |
 | `match` | `match.match.created` | **Discovery Engine** | Quando um match mútuo é detectado |
+
+### Compatibilidade com o ProfileService
+
+O ProfileService publica todos os eventos de perfil (create/update/resync) **com a mesma routing key**, definida pela variável `PROFILE_EVENT_ROUTING_KEY` (padrão: `profile.profile.updated`). Não existe campo discriminador de tipo no payload — o MatchService trata todos os eventos com `upsert`.
+
+Dois vínculos de configuração devem ser respeitados:
+
+- **`RABBITMQ_PROFILE_EXCHANGE` no MatchService** deve permanecer `profile.events` — esse valor é hardcoded no ProfileService e não é configurável lá.
+- **`PROFILE_EVENT_ROUTING_KEY` no ProfileService** deve seguir o padrão `profile.profile.<sufixo>` para ser capturado pelo binding padrão `profile.profile.*` do MatchService. Routing keys fora desse padrão causariam perda silenciosa de eventos.
 
 ### Fluxo de swipe
 

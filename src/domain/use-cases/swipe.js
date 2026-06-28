@@ -9,6 +9,6 @@ export class SwipeUseCase {
     if (requesterId === targetId) {
       throw new ValidationError('Cannot swipe on yourself')
     }
-    await this.eventPublisher.publish('swipe.swipe.created', { requesterId, targetId, liked })
+    await this.eventPublisher.publish('match.swipe.created', { requesterId, targetId, liked })
   }
 }

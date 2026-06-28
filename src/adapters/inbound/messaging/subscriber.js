@@ -1,17 +1,18 @@
 import { createProfile } from '../../../domain/entities/profile.js'
 import { CreateMatchUseCase } from '../../../domain/use-cases/create-match.js'
+import { env } from '../../../config/env.js'
 import { logger } from '../../../shared/logger.js'
-
-const EXCHANGE = 'profile.events'
-const QUEUE = 'match-service.profile.profile'
-const DLQ = 'match-service.profile.profile.dlq'
-const BINDING_KEY = 'profile.profile.*'
 
 /**
  * @param {import('amqplib').Channel} channel
  * @param {import('../../../adapters/outbound/db/profile-repository.js').ProfileRepository} profileRepository
  */
 export async function registerSubscribers(channel, profileRepository) {
+  const EXCHANGE = env.RABBITMQ_PROFILE_EXCHANGE
+  const QUEUE = env.RABBITMQ_PROFILE_QUEUE
+  const DLQ = `${QUEUE}.dlq`
+  const BINDING_KEY = env.RABBITMQ_PROFILE_BINDING_KEY
+
   await channel.assertExchange(EXCHANGE, 'topic', { durable: true })
   await channel.assertExchange(DLQ, 'topic', { durable: true })
   await channel.assertQueue(QUEUE, {
@@ -34,33 +35,20 @@ export async function registerSubscribers(channel, profileRepository) {
       return
     }
 
-    const routingKey = msg.fields.routingKey
     const { id: id_profile, name } = payload
 
     try {
-      if (routingKey === 'profile.profile.created') {
-        await profileRepository.save(createProfile({ id_profile, name }))
-        logger.info({ id_profile }, 'Profile created')
-      } else if (routingKey === 'profile.profile.updated' || routingKey === 'profile.profile.synced') {
-        await profileRepository.upsert(createProfile({ id_profile, name }))
-        logger.info({ id_profile, routingKey }, 'Profile upserted')
-      } else {
-        logger.warn({ routingKey }, 'Unknown routing key, skipping')
-      }
+      await profileRepository.upsert(createProfile({ id_profile, name }))
+      logger.info({ id_profile, routingKey: msg.fields.routingKey }, 'Profile upserted')
       channel.ack(msg)
     } catch (err) {
-      logger.error({ err, id_profile, routingKey }, 'Failed to process profile event')
+      logger.error({ err, id_profile }, 'Failed to process profile event')
       channel.nack(msg, false, false)
     }
   })
 
   logger.info({ queue: QUEUE, bindingKey: BINDING_KEY }, 'RabbitMQ subscriber registered')
 }
-
-const SWIPE_EXCHANGE = 'match'
-const SWIPE_QUEUE = 'match-service.swipe.swipe'
-const SWIPE_DLQ = 'match-service.swipe.swipe.dlq'
-const SWIPE_BINDING_KEY = 'swipe.swipe.*'
 
 /**
  * @param {import('amqplib').Channel} channel
@@ -69,6 +57,11 @@ const SWIPE_BINDING_KEY = 'swipe.swipe.*'
  * @param {import('../../../domain/ports/outbound/event-publisher.js').IEventPublisher} eventPublisher
  */
 export async function registerSwipeSubscriber(channel, userStateRepository, matchRepository, eventPublisher) {
+  const SWIPE_EXCHANGE = env.RABBITMQ_SWIPE_EXCHANGE
+  const SWIPE_QUEUE = env.RABBITMQ_SWIPE_QUEUE
+  const SWIPE_DLQ = `${SWIPE_QUEUE}.dlq`
+  const SWIPE_BINDING_KEY = env.RABBITMQ_SWIPE_BINDING_KEY
+
   await channel.assertExchange(SWIPE_EXCHANGE, 'topic', { durable: true })
   await channel.assertExchange(SWIPE_DLQ, 'topic', { durable: true })
   await channel.assertQueue(SWIPE_QUEUE, {
@@ -95,7 +88,7 @@ export async function registerSwipeSubscriber(channel, userStateRepository, matc
     const { requesterId, targetId, liked } = payload
 
     try {
-      if (routingKey === 'swipe.swipe.created') {
+      if (routingKey === 'match.swipe.created') {
         await userStateRepository.addSeen(requesterId, targetId)
 
         const mutualLike = liked && await userStateRepository.hasLiked(targetId, requesterId)
@@ -129,16 +122,16 @@ export async function registerSwipeSubscriber(channel, userStateRepository, matc
   logger.info({ queue: SWIPE_QUEUE, bindingKey: SWIPE_BINDING_KEY }, 'Swipe subscriber registered')
 }
 
-const SUGGESTION_EXCHANGE = 'suggestion'
-const SUGGESTION_QUEUE = 'match-service.suggestion.suggestion'
-const SUGGESTION_DLQ = 'match-service.suggestion.suggestion.dlq'
-const SUGGESTION_BINDING_KEY = 'suggestion.suggestion.*'
-
 /**
  * @param {import('amqplib').Channel} channel
  * @param {import('../../../adapters/outbound/cache/user-state-repository.js').UserStateRepository} userStateRepository
  */
 export async function registerSuggestionsSubscriber(channel, userStateRepository) {
+  const SUGGESTION_EXCHANGE = env.RABBITMQ_SUGGESTION_EXCHANGE
+  const SUGGESTION_QUEUE = env.RABBITMQ_SUGGESTION_QUEUE
+  const SUGGESTION_DLQ = `${SUGGESTION_QUEUE}.dlq`
+  const SUGGESTION_BINDING_KEY = env.RABBITMQ_SUGGESTION_BINDING_KEY
+
   await channel.assertExchange(SUGGESTION_EXCHANGE, 'topic', { durable: true })
   await channel.assertExchange(SUGGESTION_DLQ, 'topic', { durable: true })
   await channel.assertQueue(SUGGESTION_QUEUE, {
