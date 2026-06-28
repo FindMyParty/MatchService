@@ -12,14 +12,14 @@ export class ProfileRepository {
       .execute();
   }
 
-  /**
-   * @param {string} id_profile
-   */
-  async findById(id_profile) {
-    return db
-      .selectFrom('profile')
-      .selectAll()
-      .where('id_profile', '=', id_profile)
-      .executeTakeFirst();
+  async upsert(profile) {
+    await db
+      .insertInto('profile')
+      .values(profile)
+      .onConflict((oc) =>
+        oc.column('id_profile').doUpdateSet({ name: profile.name }),
+      )
+      .execute();
   }
+
 }

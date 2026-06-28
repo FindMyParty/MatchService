@@ -1,9 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { logger } from '../../../shared/logger.js';
 import { AppError } from '../../../shared/errors.js';
 import { matchRoutes } from './routes/match.routes.js';
+import { swipeRoutes } from './routes/swipe.routes.js';
+import { suggestionsRoutes } from './routes/suggestions.routes.js';
 import { healthRoutes } from './routes/health.routes.js';
 import { metricsRoutes } from './routes/metrics.routes.js';
 
@@ -11,7 +15,14 @@ export function buildServer(matchService) {
   const fastify = Fastify({ logger });
 
   fastify.register(cors);
-  fastify.register(helmet);
+  fastify.register(helmet, { contentSecurityPolicy: false });
+
+  fastify.register(swagger, {
+    openapi: {
+      info: { title: 'Match Service', version: '1.0.0' },
+    },
+  });
+  fastify.register(swaggerUi, { routePrefix: '/docs' });
 
   fastify.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
@@ -35,6 +46,8 @@ export function buildServer(matchService) {
   fastify.register(healthRoutes);
   fastify.register(metricsRoutes);
   fastify.register(matchRoutes, { matchService });
+  fastify.register(swipeRoutes, { matchService });
+  fastify.register(suggestionsRoutes, { matchService });
 
   return fastify;
 }

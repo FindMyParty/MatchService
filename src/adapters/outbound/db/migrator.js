@@ -1,12 +1,12 @@
-import { Kysely, Migrator, FileMigrationProvider, PostgresDialect } from 'kysely';
+import { Kysely, Migrator, PostgresDialect } from 'kysely';
 import pg from 'pg';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { env } from '../../../config/env.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const migrationsPath = path.join(__dirname, '../../../migrations');
+const migrationsFolder = path.join(__dirname, '../../../migrations');
 
 const db = new Kysely({
   dialect: new PostgresDialect({
@@ -16,11 +16,18 @@ const db = new Kysely({
 
 const migrator = new Migrator({
   db,
-  provider: new FileMigrationProvider({
-    fs,
-    path,
-    migrationFolder: migrationsPath,
-  }),
+  provider: {
+    async getMigrations() {
+      const files = (await fs.readdir(migrationsFolder)).filter((f) => f.endsWith('.js'));
+      const entries = await Promise.all(
+        files.map(async (file) => {
+          const mod = await import(pathToFileURL(path.join(migrationsFolder, file)).href);
+          return [file.replace(/\.js$/, ''), mod];
+        }),
+      );
+      return Object.fromEntries(entries);
+    },
+  },
 });
 
 const { error, results } = await migrator.migrateToLatest();

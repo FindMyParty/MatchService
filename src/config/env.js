@@ -4,11 +4,12 @@ const envSchema = z.object({
   PORT: z.string().min(1),
   DATABASE_URL: z.string().url(),
   RABBITMQ_URL: z.string().min(1),
-  JWT_SECRET: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url(),
   SENTRY_DSN: z.string().optional(),
+  REDIS_URL: z.string().min(1),
+  REDIS_TTL: z.coerce.number().int().positive().default(86400),
 });
 
 const parsed = envSchema.safeParse(process.env);

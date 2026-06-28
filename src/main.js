@@ -17,8 +17,8 @@ if (env.SENTRY_DSN) {
 // Step 3: Connect DB
 logger.info('Connecting to database...');
 const { db } = await import('./adapters/outbound/db/client.js');
-const { Migrator, FileMigrationProvider, sql } = await import('kysely');
-const { fileURLToPath } = await import('url');
+const { Migrator, sql } = await import('kysely');
+const { fileURLToPath, pathToFileURL } = await import('url');
 const { default: path } = await import('path');
 const { promises: fs } = await import('fs');
 
@@ -27,13 +27,22 @@ logger.info('Database connected');
 
 // Step 4: Run migrations
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const migrationsFolder = path.join(__dirname, './migrations');
+
 const migrator = new Migrator({
   db,
-  provider: new FileMigrationProvider({
-    fs,
-    path,
-    migrationFolder: path.join(__dirname, './migrations'),
-  }),
+  provider: {
+    async getMigrations() {
+      const files = (await fs.readdir(migrationsFolder)).filter((f) => f.endsWith('.js'));
+      const entries = await Promise.all(
+        files.map(async (file) => {
+          const mod = await import(pathToFileURL(path.join(migrationsFolder, file)).href);
+          return [file.replace(/\.js$/, ''), mod];
+        }),
+      );
+      return Object.fromEntries(entries);
+    },
+  },
 });
 
 const { error: migrationError, results: migrationResults } = await migrator.migrateToLatest();
@@ -70,19 +79,31 @@ eventPublisher.connect(channel);
 
 // Step 7: Register subscribers
 const { ProfileRepository } = await import('./adapters/outbound/db/profile-repository.js');
-const { CreateProfileUseCase } = await import('./domain/use-cases/create-profile.js');
-const { registerSubscribers } = await import('./adapters/inbound/messaging/subscriber.js');
+const { registerSubscribers, registerSwipeSubscriber, registerSuggestionsSubscriber } = await import('./adapters/inbound/messaging/subscriber.js');
 
 const profileRepository = new ProfileRepository();
-const createProfileUseCase = new CreateProfileUseCase(profileRepository);
-await registerSubscribers(channel, createProfileUseCase);
+await registerSubscribers(channel, profileRepository);
+
+// Step 7b: Connect Redis
+logger.info('Connecting to Redis...');
+const { redisClient } = await import('./adapters/outbound/cache/redis-client.js');
+await redisClient.connect();
+logger.info('Redis connected');
 
 // Step 8: Instantiate repositories and application service
 const { MatchRepository } = await import('./adapters/outbound/db/match-repository.js');
+const { UserStateRepository } = await import('./adapters/outbound/cache/user-state-repository.js');
 const { MatchApplicationService } = await import('./application/services/match-application-service.js');
 
 const matchRepository = new MatchRepository();
-const matchService = new MatchApplicationService(profileRepository, matchRepository, eventPublisher);
+const userStateRepository = new UserStateRepository(redisClient, env.REDIS_TTL);
+const matchService = new MatchApplicationService(matchRepository, eventPublisher, userStateRepository);
+
+// Step 8b: Register swipe subscriber (needs matchRepository + userStateRepository)
+await registerSwipeSubscriber(channel, userStateRepository, matchRepository, eventPublisher)
+
+// Step 8c: Register suggestions subscriber
+await registerSuggestionsSubscriber(channel, userStateRepository);
 
 // Step 9: Start HTTP server
 const { buildServer } = await import('./adapters/inbound/http/server.js');
@@ -100,6 +121,9 @@ const shutdown = async (signal) => {
 
     await amqpConnection.close();
     logger.info('RabbitMQ connection closed');
+
+    await redisClient.quit();
+    logger.info('Redis connection closed');
 
     await db.destroy();
     logger.info('Database connection closed');

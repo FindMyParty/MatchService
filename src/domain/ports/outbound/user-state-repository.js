@@ -1,27 +1,5 @@
 /**
- * @interface IMatchService
- */
-
-/**
- * Finds all matches for a given profile ID (as profile1 or profile2).
- * @function findMatch
- * @param {string} id_profile
- * @returns {Promise<Array<{ id_profile1: string, id_profile2: string, data: Date }>>}
- */
-
-/**
- * Publishes a swipe event. The consumer handles Redis updates and match creation.
- * @function swipe
- * @param {{ requesterId: string, targetId: string, liked: boolean }} data
- * @returns {Promise<void>}
- */
-
-/**
- * Pops up to `count` suggestion IDs from Redis for the given user (atomic remove + return).
- * @function getSuggestionsAndRemove
- * @param {string} userId
- * @param {number} count
- * @returns {Promise<string[]>}
+ * @interface IUserStateRepository
  */
 
 /**
@@ -82,4 +60,35 @@
  * @param {string} userId
  * @param {string} profileId
  * @returns {Promise<boolean>}
+ */
+
+/**
+ * @function removeSuggestion
+ * @param {string} userId
+ * @param {string} profileId
+ * @returns {Promise<void>}
+ */
+
+/**
+ * @function removeLiked
+ * @param {string} userId
+ * @param {string} profileId
+ * @returns {Promise<void>}
+ */
+
+/**
+ * Adds suggestion IDs that are not already in the user's seen set.
+ * Uses SDIFF for efficiency — single Redis round-trip regardless of list size.
+ * @function addSuggestionsExcludingSeen
+ * @param {string} userId
+ * @param {string[]} suggestionIds
+ * @returns {Promise<void>}
+ */
+
+/**
+ * Atomically removes and returns up to `count` suggestion IDs (SPOP).
+ * @function popSuggestions
+ * @param {string} userId
+ * @param {number} count
+ * @returns {Promise<string[]>}
  */

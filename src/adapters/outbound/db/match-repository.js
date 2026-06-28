@@ -8,7 +8,16 @@ export class MatchRepository {
     await db.insertInto('match_tb').values(match).execute();
   }
 
-  async findAll() {
-    return db.selectFrom('match_tb').selectAll().execute();
+  async findByProfileId(id_profile) {
+    return db
+      .selectFrom('match_tb')
+      .selectAll()
+      .where((eb) =>
+        eb.or([
+          eb('id_profile1', '=', id_profile),
+          eb('id_profile2', '=', id_profile),
+        ])
+      )
+      .execute();
   }
 }
