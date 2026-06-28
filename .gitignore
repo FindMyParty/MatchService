@@ -27,3 +27,7 @@ coverage/
 
 # Claude Code
 .claude/
+
+# Local scripts and task tracking
+scripts/
+tasks/
